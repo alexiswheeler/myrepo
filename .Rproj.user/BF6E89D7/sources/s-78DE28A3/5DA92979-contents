@@ -1,0 +1,136 @@
+---
+title: "win probability"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+install.packages("devtools")
+devtools::install_github("lbenz730/ncaahoopR"
+
+```
+```{r}
+get_labeled_data<-function(team_name){
+
+   team_pbp<-read_csv(paste("~/NCAA_Hoops_Play_By_Play-master/pbp_2016_17/", team_name, ".csv", sep=""))
+                      
+   end_of_game<-filter(team_pbp, description=="End of Game")
+   
+   df<-data.frame(game_id= unique(end_of_game$game_id), result=ifelse(end_of_game$home_score>end_of_game$away_score, 1, 0))
+   
+   team_pbp_labeled<-left_join(team_pbp, df, by= "game_id")
+   
+   
+   return(team_pbp_labeled)
+ }
+
+```
+
+
+```{r}
+library(readr)
+Alabamapbp <- read_csv("Desktop/pbp_2016_17/Alabama.csv")
+View(Alabama)
+library(readr)
+Alabamaroster <- read_csv("Desktop/NCAA_Hoops_Play_By_Play/rosters_2016_17/Alabama.csv")
+View(Alabama)
+NCAA_Hoops_PBP_Scraper <- read_csv("Desktop/NCAA_Hoops_Play_By_Play/NCAA_Hoops_PBP_Scraper.R")
+View(NCAA_Hoops_PBP_Scraper)
+```
+```{r}
+head(Alabamapbp)
+```
+
+# Elo rating : rank teams, individuals & games.
+
+```{r}
+library(readr)
+Alabamapbp <- read_csv("Desktop/pbp_2016_17/Alabama.csv")
+View(Alabama)
+Alabamapbp %>%
+  select(half, home, away, home_score, away_score) %>%
+  mutate(total_points = home_score + away_score ) %>%
+  arrange(-total_points) %>%
+  head(1)
+library(elo)
+# elo score set up for win as 1, 0.5 for draw and 0 for loss.
+```{r}
+Alabamapbp <- Alabamapbp %>% 
+  mutate(result = if_else(home_score > away_score, 1,
+                          if_else(home_score == away_score, 0.5, 0)))
+alabama_elo_calcs_std <- elo.run(Alabamapbp$result ~ Alabamapbp$home + Alabamapbp$away, data = Alabamapbp, k=20)
+alabama_elo_calcs_std <- data.frame(Elo.Ratings = final.elos(alabama_elo_calcs_std))
+alabama_elo_calcs_std <- rownames_to_column(alabama_elo_calcs_std, "Teams")
+alabama_elo_calcs_std <- arrange(alabama_elo_calcs_std, desc(Elo.Ratings))
+```
+# teams elo values data fram
+```{r}
+teams <- data.frame(team = unique(c( Alabamapbp$away, Alabamapbp$home)))
+
+```
+# set initial values to 1500 for elo ratings
+```{r}
+teams <- teams %>% 
+  mutate(elo = 1500)
+```
+##add col with the absolute margun of victor
+```{r}
+Alabamapbp$marg <- abs(Alabamapbp$home_score - Alabamapbp$away_score)
+
+for (i in seq_len(nrow(Alabamapbp))) {
+  game <- Alabamapbp[i, ]
+}
+```
+# pre match ratings 
+```{r}
+teamA_elo <- subset(teams, team == game$home)$elo
+teamB_elo <-subset(teams, team == game$away)$elo
+```
+```{r}
+new_elo <- elo.calc(wins.A = game$result, elo.A =  teamA_elo, elo.B = teamB_elo, k = 20*(((game$marg + 3)^0.8) / (7.5 + .006*(
+  ifelse(game$home_score > game$away_score, teamA_elo, teamB_elo) -
+    ifelse(game$home_score > game$away_score, teamB_elo, teamA_elo) +
+             ifelse(game$home_score > game$away_score, 100, -100))))
+  
+```
+
+##results come back as data.frame 
+
+#adjusted for home court advantage
+```{r}
+Alabamapbp_elo_calcs_adj4hc <- elo.run(Alabamapbp$result ~ adjust(Alabamapbp$home, 100) + Alabamapbp$away , data = Alabamapbp, k = 20)
+Alabamapbp_elo_ratings_adj4hc <- data.frame(ELo.Ratings = final.elos(Alabamapbp_elo_calcs_adj4hc))
+Alabamapbp_elo_ratings_adj4hc <- rownames(Alabamapbp_elo_ratings_adj4hc, "Teams")
+Alabamapbp_elo_ratings_adj4hc <- arrange(Alabamapbp_elo_ratings_adj4hc, desc(Elo.Ratings))
+```
+```{r}
+
+
+```
+
+# Expected score 
+EA = 1 / (1 + 10^( (RB -RA) / 400) )
+EB expected score = 1/ ( 1 + 10^( (RA - RB) / 400) )
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
